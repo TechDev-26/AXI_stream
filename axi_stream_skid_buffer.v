@@ -1,9 +1,3 @@
-# AXI-Stream Skid Buffer
-
-A synthesizable, high-performance Verilog implementation of an AXI-Stream Skid Buffer. 
-This module provides complete timing isolation (pipelining) for the `TDATA` and `TVALID` paths without sacrificing throughput or violating the AXI4-Stream handshake protocol during downstream backpressure.
-
-
 module axi_stream_skid_buffer #(
     parameter DATA_WIDTH = 32
 )(
