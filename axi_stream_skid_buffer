@@ -1,77 +1,88 @@
+# AXI-Stream Skid Buffer
+
+A synthesizable, high-performance Verilog implementation of an AXI-Stream Skid Buffer. This module provides complete timing isolation (pipelining) for the `TDATA` and `TVALID` paths without sacrificing throughput or violating the AXI4-Stream handshake protocol during downstream backpressure.
+
+---
+
+## 1. Verilog Implementation
+
+Save this file as `axi_stream_skid_buffer.v`:
+
+```verilog
 module axi_stream_skid_buffer #(
-    parameter DATA_WIDTH = 32
+    parameter DATA_WIDTH = 32
 )(
-    input  wire                    clk,
-    input  wire                    rst_n,
+    input  wire                    clk,
+    input  wire                    rst_n,
 
-    // Slave Interface (Input)
-    input  wire [DATA_WIDTH-1:0]   s_axis_tdata,
-    input  wire                    s_axis_tvalid,
-    output wire                    s_axis_tready,
+    // Slave Interface (Input)
+    input  wire [DATA_WIDTH-1:0]   s_axis_tdata,
+    input  wire                    s_axis_tvalid,
+    output wire                    s_axis_tready,
 
-    // Master Interface (Output)
-    output wire [DATA_WIDTH-1:0]   m_axis_tdata,
-    output wire                    m_axis_tvalid,
-    input  wire                    m_axis_tready
+    // Master Interface (Output)
+    output wire [DATA_WIDTH-1:0]   m_axis_tdata,
+    output wire                    m_axis_tvalid,
+    input  wire                    m_axis_tready
 );
 
-    //--------------------------------------------------------------------------
-    // Internal Registers
-    //--------------------------------------------------------------------------
-    // Main registers for output timing isolation
-    reg [DATA_WIDTH-1:0] m_data_reg;
-    reg                  m_valid_reg;
+    //--------------------------------------------------------------------------
+    // Internal Registers
+    //--------------------------------------------------------------------------
+    // Main registers for output timing isolation
+    reg [DATA_WIDTH-1:0] m_data_reg;
+    reg                  m_valid_reg;
 
-    // Secondary (Skid) registers to hold data during backpressure
-    reg [DATA_WIDTH-1:0] skid_data_reg;
-    reg                  skid_valid_reg;
+    // Secondary (Skid) registers to hold data during backpressure
+    reg [DATA_WIDTH-1:0] skid_data_reg;
+    reg                  skid_valid_reg;
 
-    //--------------------------------------------------------------------------
-    // Handshake and Control Logic
-    //--------------------------------------------------------------------------
-    // We can accept input data if the skid register is empty
-    assign s_axis_tready = !skid_valid_reg;
+    //--------------------------------------------------------------------------
+    // Handshake and Control Logic
+    //--------------------------------------------------------------------------
+    // We can accept input data if the skid register is empty
+    assign s_axis_tready = !skid_valid_reg;
 
-    // Drive outputs directly from our main isolation registers
-    assign m_axis_tdata  = m_data_reg;
-    assign m_axis_tvalid = m_valid_reg;
+    // Drive outputs directly from our main isolation registers
+    assign m_axis_tdata  = m_data_reg;
+    assign m_axis_tvalid = m_valid_reg;
 
-    //--------------------------------------------------------------------------
-    // Datapath State Machine / Sequential Logic
-    //--------------------------------------------------------------------------
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            m_data_reg     <= {DATA_WIDTH{1'b0}};
-            m_valid_reg    <= 1'b0;
-            skid_data_reg  <= {DATA_WIDTH{1'b0}};
-            skid_valid_reg <= 1'b0;
-        end else begin
-            
-            // CASE 1: Downstream is ready to accept data
-            if (m_axis_tready) begin
-                // If there is data in the skid buffer, it moves to the main output
-                if (skid_valid_reg) begin
-                    m_data_reg     <= skid_data_reg;
-                    m_valid_reg    <= 1'b1;
-                    skid_valid_reg <= 1'b0; // Skid buffer is now cleared
-                end 
-                // Otherwise, pass incoming stream straight to the main output
-                else begin
-                    m_data_reg  <= s_axis_tdata;
-                    m_valid_reg <= s_axis_tvalid;
-                end
-            end
-            
-            // CASE 2: Downstream is stalling (m_axis_tready == 0)
-            else begin
-                // If new data arrives while stalled, it must "skid" into the backup register
-                if (s_axis_tvalid && s_axis_tready) begin
-                    skid_data_reg  <= s_axis_tdata;
-                    skid_valid_reg <= 1'b1;
-                end
-            end
-            
-        end
-    end
+    //--------------------------------------------------------------------------
+    // Datapath State Machine / Sequential Logic
+    //--------------------------------------------------------------------------
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            m_data_reg     <= {DATA_WIDTH{1'b0}};
+            m_valid_reg    <= 1'b0;
+            skid_data_reg  <= {DATA_WIDTH{1'b0}};
+            skid_valid_reg <= 1'b0;
+        end else begin
+            
+            // CASE 1: Downstream is ready to accept data
+            if (m_axis_tready) begin
+                // If there is data in the skid buffer, it moves to the main output
+                if (skid_valid_reg) begin
+                    m_data_reg     <= skid_data_reg;
+                    m_valid_reg    <= 1'b1;
+                    skid_valid_reg <= 1'b0; // Skid buffer is now cleared
+                end 
+                // Otherwise, pass incoming stream straight to the main output
+                else begin
+                    m_data_reg  <= s_axis_tdata;
+                    m_valid_reg <= s_axis_tvalid;
+                end
+            end
+            
+            // CASE 2: Downstream is stalling (m_axis_tready == 0)
+            else begin
+                // If new data arrives while stalled, it must "skid" into the backup register
+                if (s_axis_tvalid && s_axis_tready) begin
+                    skid_data_reg  <= s_axis_tdata;
+                    skid_valid_reg <= 1'b1;
+                end
+            end
+            
+        end
+    end
 
-endmodule 
+endmodule
