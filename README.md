@@ -29,7 +29,9 @@ The design utilizes two distinct register stages:
 ### Ready Logic
 ```verilog
 assign s_axis_tready = !skid_valid_reg;
-## Verification & Simulation
+
+
+### Verification & Simulation
 
 A comprehensive testbench (`axi_stream_skid_buffer_tb.v`) is included to validate the protocol compliance and timing isolation of the design. 
 
@@ -38,7 +40,7 @@ The simulation tests three critical phases of data flow:
 2. **Backpressure Injection:** Drops `m_axis_tready` while upstream is transmitting to verify that data safely "skids" into the backup storage without corruption.
 3. **Stall Recovery:** Restores `m_axis_tready` to demonstrate the skid buffer unloading back onto the primary data path with zero dead cycles.
 
-### Simulation Log Output
+## Simulation Log Output
 When executed, the testbench monitors the internal interfaces and outputs the following verification logs:
 
 ```text
